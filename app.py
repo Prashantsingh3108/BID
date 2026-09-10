@@ -1,937 +1,984 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import joblib
+
 import os
+import joblib
+import numpy as np
+import pandas as pd
+import streamlit as st
+import matplotlib.pyplot as plt
 
 # ============================================================
 # PAGE CONFIG
 # ============================================================
-
 st.set_page_config(
-    page_title="BidTrust AI",
-    page_icon="🛡️",
+    page_title="GeM-AI Integrated Bid Compliance",
+    page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # ============================================================
-# CUSTOM CSS
+# THEME / CSS
 # ============================================================
-
-st.markdown("""
+st.markdown(
+    """
 <style>
-
-    .main {
-        background-color: #f8fafc;
+    /* ---------- Global ---------- */
+    .stApp {
+        background: #060b17;
+        color: #e8eefc;
     }
 
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+    .main .block-container {
+        max-width: 1700px;
+        padding: 0.8rem 1.5rem 2rem 1.5rem;
     }
 
-    .hero {
-        padding: 30px;
-        border-radius: 18px;
-        background: linear-gradient(135deg, #0f172a, #1e3a8a);
-        color: white;
-        margin-bottom: 25px;
+    [data-testid="stSidebar"] {
+        background: #0b132b;
+        border-right: 1px solid #263457;
     }
 
-    .hero h1 {
-        font-size: 42px;
-        margin-bottom: 5px;
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 1rem;
     }
 
-    .hero p {
-        font-size: 18px;
-        color: #dbeafe;
+    [data-testid="stSidebar"] * {
+        color: #cbd6f6;
     }
 
-    .metric-card {
-        background: white;
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 3px 12px rgba(0,0,0,0.05);
-        text-align: center;
-    }
-
-    .pass-box {
-        padding: 25px;
-        border-radius: 15px;
-        background: #dcfce7;
-        border: 2px solid #22c55e;
-        text-align: center;
-    }
-
-    .fail-box {
-        padding: 25px;
-        border-radius: 15px;
-        background: #fee2e2;
-        border: 2px solid #ef4444;
-        text-align: center;
-    }
-
-    .warning-box {
-        padding: 20px;
-        border-radius: 12px;
-        background: #fef3c7;
-        border: 1px solid #f59e0b;
-    }
-
-    .section-title {
-        font-size: 25px;
+    /* ---------- Top SIH banner ---------- */
+    .top-banner {
+        background: #3a1707;
+        border: 1px solid #6d3510;
+        color: #ffb12b;
+        padding: 8px 15px;
+        border-radius: 8px;
+        font-size: 12px;
         font-weight: 700;
-        margin-top: 20px;
-        margin-bottom: 15px;
+        letter-spacing: .4px;
+        margin-bottom: 10px;
     }
 
+    .top-banner-right {
+        float: right;
+        color: #4fe09b;
+    }
+
+    /* ---------- Header ---------- */
+    .header-card {
+        background: #0b132b;
+        border: 1px solid #1d2a49;
+        border-radius: 12px;
+        padding: 15px 18px;
+        margin-bottom: 10px;
+    }
+
+    .brand {
+        font-size: 23px;
+        font-weight: 800;
+        color: #f4f7ff;
+    }
+
+    .brand-sub {
+        color: #8191b6;
+        font-size: 12px;
+        margin-top: 2px;
+    }
+
+    .header-pill {
+        background: #16213c;
+        border: 1px solid #2b3a61;
+        border-radius: 9px;
+        padding: 9px 13px;
+        color: #dce6ff;
+        font-size: 12px;
+    }
+
+    /* ---------- Quick selector ---------- */
+    .selector {
+        background: #0a1122;
+        border-top: 1px solid #1a2745;
+        border-bottom: 1px solid #1a2745;
+        padding: 10px 0;
+        margin: 0 -1.5rem 14px -1.5rem;
+    }
+
+    .selector-title {
+        color: #b7c5e5;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .bid-chip {
+        padding: 8px 13px;
+        border-radius: 7px;
+        background: #17233e;
+        border: 1px solid #2a3a60;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .bid-green { color: #46dda0; }
+    .bid-amber { color: #ffb22e; border-color: #d87c08; }
+    .bid-red { color: #ff6666; }
+
+    /* ---------- Hero ---------- */
+    .hero {
+        background: linear-gradient(135deg, #111c38 0%, #0d1730 100%);
+        border: 1px solid #1d2b4c;
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin-bottom: 14px;
+    }
+
+    .hero-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: #f4f7ff;
+    }
+
+    .hero-sub {
+        color: #7f8fb4;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .live {
+        display: inline-block;
+        margin-left: 7px;
+        padding: 3px 8px;
+        border-radius: 5px;
+        background: #083c3b;
+        border: 1px solid #0c6b62;
+        color: #41d7a0;
+        font-size: 10px;
+        font-weight: 800;
+        vertical-align: middle;
+    }
+
+    /* ---------- Metric cards ---------- */
+    .metric-card {
+        background: #0f192f;
+        border: 1px solid #202e4e;
+        border-radius: 12px;
+        padding: 15px;
+        min-height: 112px;
+        margin-bottom: 10px;
+    }
+
+    .metric-label {
+        color: #7f8fb3;
+        font-size: 10px;
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: .5px;
+    }
+
+    .metric-value {
+        color: #f0f5ff;
+        font-size: 27px;
+        font-weight: 800;
+        margin-top: 8px;
+    }
+
+    .metric-foot {
+        color: #7182a8;
+        font-size: 10px;
+        margin-top: 5px;
+    }
+
+    .green { color: #35d391 !important; }
+    .amber { color: #ffb21d !important; }
+    .red { color: #ff6666 !important; }
+    .blue { color: #5790ff !important; }
+    .purple { color: #8c7cff !important; }
+
+    /* ---------- Panels ---------- */
+    .panel {
+        background: #0e172c;
+        border: 1px solid #202e4e;
+        border-radius: 12px;
+        padding: 16px;
+        min-height: 315px;
+    }
+
+    .panel-title {
+        color: #eef3ff;
+        font-weight: 800;
+        font-size: 15px;
+    }
+
+    .panel-sub {
+        float: right;
+        color: #7485aa;
+        font-size: 10px;
+        font-weight: 500;
+    }
+
+    /* ---------- Buttons ---------- */
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 800;
+        border: 1px solid #2a59a7;
+    }
+
+    /* ---------- Inputs ---------- */
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="textarea"] > div {
+        background: #111c38;
+        border-color: #2a3a60;
+    }
+
+    label, .stSlider label {
+        color: #b8c5e4 !important;
+    }
+
+    /* ---------- Status boxes ---------- */
+    .status-pass {
+        background: #08352a;
+        border: 1px solid #1aa873;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .status-fail {
+        background: #3a1116;
+        border: 1px solid #d54855;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .status-title {
+        font-size: 21px;
+        font-weight: 900;
+    }
+
+    .small-muted {
+        color: #7182a8;
+        font-size: 11px;
+    }
+
+    /* Hide Streamlit menu/footer */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
-""", unsafe_allow_html=True)
-
-
-# ============================================================
-# LOAD MODEL
-# ============================================================
-
-MODEL_PATH = "best_tender_classifier.pkl"
-SCALER_PATH = "scaler.pkl"
-ENCODER_PATH = "label_encoder.pkl"
-
-try:
-    model = joblib.load(MODEL_PATH)
-    label_encoder = joblib.load(ENCODER_PATH)
-
-    # Optional because Gradient Boosting doesn't require scaling
-    scaler = None
-
-    if os.path.exists(SCALER_PATH):
-        scaler = joblib.load(SCALER_PATH)
-
-except Exception as e:
-    st.error("❌ Model files could not be loaded.")
-    st.code(str(e))
-    st.stop()
-
+""",
+    unsafe_allow_html=True,
+)
 
 # ============================================================
-# HEADER
+# HELPERS
 # ============================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-st.markdown("""
-<div class="hero">
 
-    <h1>🛡️ BidTrust AI</h1>
+def load_artifact(filename):
+    path = os.path.join(BASE_DIR, filename)
+    if not os.path.exists(path):
+        return None
+    try:
+        return joblib.load(path)
+    except Exception:
+        return None
 
-    <p>
-        AI-Powered GeM Tender Bid Compliance & Risk Assessment Platform
-    </p>
 
-    <p>
-        Analyze financial, technical, legal and documentation compliance
-        before submitting your tender bid.
-    </p>
-
-</div>
-""", unsafe_allow_html=True)
+model = load_artifact("best_tender_classifier.pkl")
+label_encoder = load_artifact("label_encoder.pkl")
+scaler = load_artifact("scaler.pkl")
 
 
 # ============================================================
 # SIDEBAR
 # ============================================================
-
 with st.sidebar:
-
-    st.title("🛡️ BidTrust AI")
+    st.markdown(
+        """
+        <div style="font-size:22px;font-weight:900;color:#f4f7ff;">
+            🏛️ GeM-AI
+        </div>
+        <div class="brand-sub">Integrated Bid Compliance Hub</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
 
     page = st.radio(
-        "Navigation",
+        "CORE DASHBOARD",
         [
-            "🏠 Dashboard",
-            "🔍 Bid Compliance",
-            "📊 Dataset Explorer",
-            "ℹ️ About"
-        ]
+            "🏠 Main Dashboard",
+            "📑 Tender Management",
+            "📋 Tender Requirements",
+            "👥 Bidder Management",
+            "📤 Upload Documents",
+            "🤖 AI Document Analysis",
+            "⚙️ Compliance Engine",
+            "⚠️ Risk Assessment",
+            "🔎 Evidence Explorer",
+            "🚨 Discrepancy Center",
+        ],
     )
 
     st.markdown("---")
-
-    st.caption("AI-powered tender compliance analysis")
-
-
-# ============================================================
-# DASHBOARD
-# ============================================================
-
-if page == "🏠 Dashboard":
 
     st.markdown(
-        '<div class="section-title">📊 Compliance Dashboard</div>',
-        unsafe_allow_html=True
+        """
+        <div class="small-muted">
+        <b>AI PROCESSING & PIPELINE</b><br><br>
+        Document OCR → Requirement Extraction → Rule Engine →
+        ML Risk Classification → Human Review → Decision
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "🤖 Model",
-            "Gradient Boosting"
-        )
-
-    with col2:
-        st.metric(
-            "🎯 Accuracy",
-            "95.9%"
-        )
-
-    with col3:
-        st.metric(
-            "📈 F1 Score",
-            "94.8%"
-        )
-
-    with col4:
-        st.metric(
-            "📋 Dataset",
-            "5,000 Bids"
-        )
-
     st.markdown("---")
+    st.caption("SIH Prototype • Synthetic Demo Data")
 
-    st.subheader("How BidTrust AI Works")
 
-    c1, c2, c3 = st.columns(3)
+# ============================================================
+# TOP HEADER
+# ============================================================
+st.markdown(
+    """
+    <div class="top-banner">
+        ⚠️ SIH PROTOTYPE DEMO MODE
+        &nbsp; | &nbsp; SYNTHETIC DATA — FOR SIH PROTOTYPE ONLY
+        &nbsp; | &nbsp; DEMO DOCUMENT — NOT A GOVERNMENT DOCUMENT
+        <span class="top-banner-right">🛡 Human-in-the-Loop Procurement Officer Mandatory Authorization Active</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+h1, h2, h3, h4 = st.columns([2.8, 1.1, 1.5, 1.0])
+
+with h1:
+    st.markdown(
+        """
+        <div class="header-card">
+            <div class="brand">🏛️ GeM-AI Compliance Hub
+                <span class="live">SIH PROBLEM 26100</span>
+            </div>
+            <div class="brand-sub">
+                Government e-Marketplace Integrated Bid Compliance Verification Platform
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with h2:
+    st.markdown(
+        """
+        <div class="header-card">
+            <div class="metric-label">ACTIVE TENDER</div>
+            <div style="font-weight:800;color:#eaf0ff;margin-top:6px;">CPCL/DEMO/2026/001</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with h3:
+    st.markdown(
+        """
+        <div class="header-card">
+            <div class="metric-label">EVALUATION DATE</div>
+            <div style="font-weight:800;color:#eaf0ff;margin-top:6px;">09 Sep 2026</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with h4:
+    st.markdown(
+        """
+        <div class="header-card">
+            <div style="font-weight:800;color:#eaf0ff;">🔵 SR</div>
+            <div class="brand-sub">Senior Procurement Officer</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# QUICK DEMO SELECTOR
+# ============================================================
+st.markdown(
+    """
+    <div class="selector">
+        <span class="selector-title">✨ SIH Judge Quick Demo Selector</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+q1, q2, q3, q4 = st.columns([1.4, 1.4, 1.4, .9])
+
+with q1:
+    if st.button("🟢 Bidder A — Apex • Compliant 94%", use_container_width=True):
+        st.session_state.demo_bidder = "A"
+
+with q2:
+    if st.button("🟠 Bidder B — Nova • Medium Risk 72%", use_container_width=True):
+        st.session_state.demo_bidder = "B"
+
+with q3:
+    if st.button("🔴 Bidder C — Vertex • High Risk 44%", use_container_width=True):
+        st.session_state.demo_bidder = "C"
+
+with q4:
+    if st.button("▶ Auto 3-Min SIH Demo", use_container_width=True):
+        st.session_state.demo_bidder = "B"
+
+
+# ============================================================
+# DEMO DATA
+# ============================================================
+demo_scores = {"A": 94, "B": 72, "C": 44}
+demo_risk = {"A": "Low", "B": "Medium", "C": "High"}
+demo_name = {"A": "Apex", "B": "Nova", "C": "Vertex"}
+
+selected = st.session_state.get("demo_bidder", "B")
+
+
+# ============================================================
+# MAIN DASHBOARD
+# ============================================================
+if page == "🏠 Main Dashboard":
+
+    st.markdown(
+        f"""
+        <div class="hero">
+            <div class="hero-title">
+                Procurement Executive Command Center
+                <span class="live">Live AI Verification System</span>
+            </div>
+            <div class="hero-sub">
+                Real-time multi-source bid compliance analytics for Tender
+                <b>CPCL/DEMO/2026/001</b>
+                (Procurement of Industrial High-Pressure Centrifugal Pumps)
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # KPI cards
+    cols = st.columns(8)
+
+    cards = [
+        ("ACTIVE TENDERS", "1", "CPCL Demo", "blue"),
+        ("TOTAL BIDDERS", "3", "Bids Submitted", "purple"),
+        ("VERIFIED COMPLIANT", "1", "Low Risk", "green"),
+        ("MANUAL REVIEW", "1", "Action Needed", "amber"),
+        ("HIGH RISK BIDDERS", "1", "Flagged", "red"),
+        ("PENDING DOCS", "3", "In Pipeline", "blue"),
+        ("COMPLIANCE RATE", "70%", "Tender Average", "blue"),
+        ("VERIFICATION SPEED", "4.2s", "Per Document", "purple"),
+    ]
+
+    for col, (label, value, foot, cls) in zip(cols, cards):
+        with col:
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <div class="metric-label">{label}</div>
+                    <div class="metric-value {cls}">{value}</div>
+                    <div class="metric-foot">◉ {foot}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    # Charts
+    c1, c2, c3 = st.columns([1.05, 1.0, 1.1])
 
     with c1:
-        st.markdown("""
-        ### 1️⃣ Enter Bid Data
+        st.markdown(
+            """
+            <div class="panel">
+                <span class="panel-title">Compliance Score Comparison</span>
+                <span class="panel-sub">100-Point Weighted</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        Provide:
-
-        - Company turnover
-        - Required turnover
-        - Experience
-        - GST/PAN/Udyam
-        - OEM authorization
-        - Technical score
-        - Financial compliance
-        """)
+        fig, ax = plt.subplots(figsize=(5.5, 3.3))
+        names = ["Apex", "Nova", "Vertex"]
+        values = [94, 72, 44]
+        ax.bar(names, values)
+        ax.set_ylim(0, 100)
+        ax.set_ylabel("Score")
+        ax.grid(axis="y", alpha=.15)
+        fig.tight_layout()
+        st.pyplot(fig, use_container_width=True)
+        plt.close(fig)
 
     with c2:
-        st.markdown("""
-        ### 2️⃣ AI Analysis
+        st.markdown(
+            """
+            <div class="panel">
+                <span class="panel-title">Bidder Risk Classification</span>
+                <span class="panel-sub">Multi-Factor Engine</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        BidTrust AI evaluates:
-
-        - Financial eligibility
-        - Technical compliance
-        - Documentation
-        - Local content
-        - Certificates
-        - Blacklist status
-        """)
+        fig, ax = plt.subplots(figsize=(5.5, 3.3))
+        ax.pie(
+            [1, 1, 1],
+            labels=["Low (1)", "Medium (1)", "High (1)"],
+            startangle=90,
+            wedgeprops={"width": 0.38},
+        )
+        ax.set_aspect("equal")
+        fig.tight_layout()
+        st.pyplot(fig, use_container_width=True)
+        plt.close(fig)
 
     with c3:
-        st.markdown("""
-        ### 3️⃣ Get Decision
+        st.markdown(
+            """
+            <div class="panel">
+                <span class="panel-title">Compliance Coverage by Domain</span>
+                <span class="panel-sub">6 Domain Audit</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        The AI generates:
+        # Radar-like coverage using a polar chart
+        categories = [
+            "Statutory",
+            "Financial",
+            "Technical",
+            "MSME",
+            "Labour",
+            "Make in India",
+        ]
+        angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
+        values = [78, 82, 72, 75, 70, 80]
+        values += values[:1]
+        angles += angles[:1]
 
-        - PASS / FAIL
-        - PASS probability
-        - Compliance score
-        - Risk indicators
-        - Compliance recommendations
-        """)
+        fig = plt.figure(figsize=(5.5, 3.5))
+        ax = fig.add_subplot(111, polar=True)
+        ax.plot(angles, values, linewidth=2)
+        ax.fill(angles, values, alpha=.15)
+        ax.set_ylim(0, 100)
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(categories, fontsize=7)
+        ax.set_yticks([25, 50, 75, 100])
+        ax.set_yticklabels(["25", "50", "75", "100"], fontsize=6)
+        fig.tight_layout()
+        st.pyplot(fig, use_container_width=True)
+        plt.close(fig)
 
+    # Bidder table
+    st.markdown("### 📌 Bidder Verification Snapshot")
 
-# ============================================================
-# BID COMPLIANCE
-# ============================================================
-
-elif page == "🔍 Bid Compliance":
-
-    st.markdown(
-        '<div class="section-title">🔍 Tender Compliance Assessment</div>',
-        unsafe_allow_html=True
+    bidder_df = pd.DataFrame(
+        {
+            "Bidder": ["Apex", "Nova", "Vertex"],
+            "Compliance Score": [94, 72, 44],
+            "Risk": ["Low", "Medium", "High"],
+            "Financial": ["PASS", "PASS", "FAIL"],
+            "Technical": ["PASS", "PASS", "FAIL"],
+            "Documents": ["Complete", "2 Missing", "5 Missing"],
+            "Decision": ["Verified", "Manual Review", "High Risk"],
+        }
     )
+
+    st.dataframe(
+        bidder_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.markdown("### 🎯 Selected Demo Bidder")
+
+    sc1, sc2, sc3 = st.columns(3)
+    with sc1:
+        st.metric("Bidder", demo_name[selected])
+    with sc2:
+        st.metric("Compliance Score", f"{demo_scores[selected]}%")
+    with sc3:
+        st.metric("Risk Level", demo_risk[selected])
+
+    if demo_risk[selected] == "Low":
+        st.success("✅ Bidder is currently in the low-risk compliant category.")
+    elif demo_risk[selected] == "Medium":
+        st.warning("⚠️ Bidder requires procurement-officer manual review.")
+    else:
+        st.error("🚨 Bidder is high risk. Review failed requirements before decision.")
+
+
+# ============================================================
+# TENDER MANAGEMENT
+# ============================================================
+elif page == "📑 Tender Management":
+    st.title("📑 Tender Management")
+    st.info("Manage active GeM tenders and evaluation status.")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.text_input("Tender ID", "CPCL/DEMO/2026/001")
+        st.text_input("Tender Title", "Industrial High-Pressure Centrifugal Pumps")
+        st.selectbox("Tender Status", ["Active", "Under Evaluation", "Closed"])
+    with c2:
+        st.number_input("Total Clauses", 12, min_value=1)
+        st.date_input("Evaluation Date")
+        st.selectbox("Procurement Type", ["Goods", "Services", "Works"])
+
+
+# ============================================================
+# TENDER REQUIREMENTS
+# ============================================================
+elif page == "📋 Tender Requirements":
+    st.title("📋 Tender Requirements")
+    st.caption("12 compliance clauses configured for the active demo tender.")
+
+    requirements = pd.DataFrame(
+        {
+            "Clause": [
+                "Financial Turnover",
+                "Experience",
+                "GST / PAN",
+                "Udyam / MSME",
+                "OEM Authorization",
+                "Technical Specification",
+                "Mandatory Documents",
+                "Local Content",
+                "Certificate Validity",
+                "Blacklist Status",
+                "Labour Compliance",
+                "Make in India",
+            ],
+            "Domain": [
+                "Financial",
+                "Eligibility",
+                "Statutory",
+                "MSME",
+                "Technical",
+                "Technical",
+                "Documentation",
+                "Statutory",
+                "Legal",
+                "Legal",
+                "Labour",
+                "Policy",
+            ],
+            "Weight": [12, 10, 8, 7, 12, 15, 10, 8, 5, 5, 4, 4],
+            "Mandatory": ["Yes"] * 12,
+        }
+    )
+    st.dataframe(requirements, use_container_width=True, hide_index=True)
+
+
+# ============================================================
+# BIDDER MANAGEMENT
+# ============================================================
+elif page == "👥 Bidder Management":
+    st.title("👥 Bidder Management")
+
+    bidders = pd.DataFrame(
+        {
+            "Bidder": ["Apex", "Nova", "Vertex"],
+            "Bid ID": ["BID-001", "BID-002", "BID-003"],
+            "Score": [94, 72, 44],
+            "Risk": ["Low", "Medium", "High"],
+            "Review": ["Verified", "Manual Review", "Flagged"],
+        }
+    )
+    st.dataframe(bidders, use_container_width=True, hide_index=True)
+
+
+# ============================================================
+# UPLOAD DOCUMENTS
+# ============================================================
+elif page == "📤 Upload Documents":
+    st.title("📤 Upload Tender / Bid Documents")
+    st.write("Upload PDF, DOCX or image evidence for the compliance pipeline.")
+
+    uploaded = st.file_uploader(
+        "Choose document",
+        type=["pdf", "docx", "txt", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+    )
+
+    if uploaded:
+        st.success(f"{len(uploaded)} document(s) received.")
+        for file in uploaded:
+            st.write(f"📄 {file.name} — {file.size / 1024:.1f} KB")
+
+
+# ============================================================
+# AI DOCUMENT ANALYSIS
+# ============================================================
+elif page == "🤖 AI Document Analysis":
+    st.title("🤖 AI Document Analysis")
 
     st.info(
-        "Enter the tender and bidder information below. "
-        "Derived compliance margins will be calculated automatically."
+        "Prototype analysis view. Connect your OCR / LLM pipeline here to "
+        "extract clauses, entities, dates and compliance evidence."
     )
 
-    # --------------------------------------------------------
-    # TENDER ID
-    # --------------------------------------------------------
-
-    tender_id = st.text_input(
-        "Tender ID",
-        value="TENDER-001"
+    text = st.text_area(
+        "Document text",
+        "The bidder confirms GST registration, OEM authorization, "
+        "minimum turnover and technical compliance.",
+        height=180,
     )
 
-    # --------------------------------------------------------
-    # FINANCIAL INFORMATION
-    # --------------------------------------------------------
-
-    st.subheader("💰 Financial Compliance")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        turnover = st.number_input(
-            "Company Turnover (₹ Crore)",
-            min_value=0.0,
-            max_value=1000.0,
-            value=10.0,
-            step=0.1
-        )
-
-    with col2:
-        required_turnover = st.number_input(
-            "Required Turnover (₹ Crore)",
-            min_value=0.0,
-            max_value=1000.0,
-            value=5.0,
-            step=0.1
-        )
-
-    # --------------------------------------------------------
-    # EXPERIENCE
-    # --------------------------------------------------------
-
-    st.subheader("🏢 Experience & Eligibility")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        experience = st.number_input(
-            "Company Experience (Years)",
-            min_value=0.0,
-            max_value=100.0,
-            value=5.0,
-            step=0.1
-        )
-
-    with col2:
-        required_experience = st.number_input(
-            "Required Experience (Years)",
-            min_value=0.0,
-            max_value=100.0,
-            value=3.0,
-            step=0.1
-        )
-
-    # --------------------------------------------------------
-    # DOCUMENT VALIDATION
-    # --------------------------------------------------------
-
-    st.subheader("📄 Legal & Document Compliance")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        gst_valid = st.selectbox(
-            "GST Valid",
-            ["Yes", "No"]
-        )
-
-    with col2:
-        pan_valid = st.selectbox(
-            "PAN Valid",
-            ["Yes", "No"]
-        )
-
-    with col3:
-        udyam_valid = st.selectbox(
-            "Udyam Valid",
-            ["Yes", "No"]
-        )
-
-    with col4:
-        oem_authorization = st.selectbox(
-            "OEM Authorization",
-            ["Yes", "No"]
-        )
-
-    # --------------------------------------------------------
-    # TECHNICAL
-    # --------------------------------------------------------
-
-    st.subheader("⚙️ Technical Compliance")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        technical_score = st.slider(
-            "Technical Score",
-            min_value=0.0,
-            max_value=100.0,
-            value=75.0,
-            step=0.1
-        )
-
-    with col2:
-        minimum_technical_score = st.number_input(
-            "Minimum Required Technical Score",
-            min_value=0.0,
-            max_value=100.0,
-            value=70.0,
-            step=1.0
-        )
-
-    # --------------------------------------------------------
-    # COMPLIANCE
-    # --------------------------------------------------------
-
-    st.subheader("📋 Compliance Status")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        technical_compliance = st.selectbox(
-            "Technical Compliance",
-            ["Compliant", "Not Compliant"]
-        )
-
-    with col2:
-        financial_compliance = st.selectbox(
-            "Financial Compliance",
-            ["Compliant", "Not Compliant"]
-        )
-
-    with col3:
-        eligibility_compliance = st.selectbox(
-            "Eligibility Compliance",
-            ["Compliant", "Not Compliant"]
-        )
-
-    # --------------------------------------------------------
-    # DOCUMENTS
-    # --------------------------------------------------------
-
-    st.subheader("📁 Mandatory Documents")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        mandatory_documents_complete = st.selectbox(
-            "Mandatory Documents Complete",
-            ["Yes", "No"]
-        )
-
-    with col2:
-        missing_documents = st.number_input(
-            "Number of Missing Documents",
-            min_value=0,
-            max_value=100,
-            value=0,
-            step=1
-        )
-
-    # --------------------------------------------------------
-    # LOCAL CONTENT
-    # --------------------------------------------------------
-
-    st.subheader("🇮🇳 Local Content")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        local_content = st.number_input(
-            "Local Content (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=60.0,
-            step=0.1
-        )
-
-    with col2:
-        required_local_content = st.number_input(
-            "Required Local Content (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=50.0,
-            step=1.0
-        )
-
-    # --------------------------------------------------------
-    # CERTIFICATE / BLACKLIST
-    # --------------------------------------------------------
-
-    st.subheader("🛡️ Certificate & Legal Status")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        certificate_validity = st.selectbox(
-            "Certificate Validity",
-            ["Valid", "Expired"]
-        )
-
-    with col2:
-        blacklist_clear = st.selectbox(
-            "Blacklist Status",
-            ["Clear", "Blacklisted"]
-        )
-
-    # --------------------------------------------------------
-    # COMPLIANCE SCORE
-    # --------------------------------------------------------
-
-    st.subheader("📊 Existing Compliance Score")
-
-    compliance_score = st.slider(
-        "Compliance Score",
-        min_value=0.0,
-        max_value=100.0,
-        value=80.0,
-        step=0.1
-    )
-
-    # ========================================================
-    # PREDICTION
-    # ========================================================
-
-    st.markdown("---")
-
-    predict_button = st.button(
-        "🚀 Analyze Bid Compliance",
-        type="primary",
-        use_container_width=True
-    )
-
-    if predict_button:
-
-        # ----------------------------------------------------
-        # Convert categorical values to 0/1
-        # ----------------------------------------------------
-
-        record = {
-            "turnover_crore": turnover,
-            "required_turnover_crore": required_turnover,
-            "experience_years": experience,
-            "required_experience_years": required_experience,
-
-            "gst_valid": 1 if gst_valid == "Yes" else 0,
-            "pan_valid": 1 if pan_valid == "Yes" else 0,
-            "udyam_valid": 1 if udyam_valid == "Yes" else 0,
-            "oem_authorization": 1 if oem_authorization == "Yes" else 0,
-
-            "technical_score": technical_score,
-            "minimum_technical_score": minimum_technical_score,
-
-            "technical_compliance":
-                1 if technical_compliance == "Compliant" else 0,
-
-            "financial_compliance":
-                1 if financial_compliance == "Compliant" else 0,
-
-            "eligibility_compliance":
-                1 if eligibility_compliance == "Compliant" else 0,
-
-            "mandatory_documents_complete":
-                1 if mandatory_documents_complete == "Yes" else 0,
-
-            "missing_documents": missing_documents,
-
-            "local_content_percent": local_content,
-            "required_local_content_percent": required_local_content,
-
-            "certificate_validity":
-                1 if certificate_validity == "Valid" else 0,
-
-            "blacklist_clear":
-                1 if blacklist_clear == "Clear" else 0,
-
-            "compliance_score": compliance_score
-        }
-
-        # ----------------------------------------------------
-        # Derived features
-        # Same feature engineering as notebook
-        # ----------------------------------------------------
-
-        row = pd.DataFrame([record])
-
-        row["turnover_margin"] = (
-            row["turnover_crore"]
-            - row["required_turnover_crore"]
-        )
-
-        row["experience_margin"] = (
-            row["experience_years"]
-            - row["required_experience_years"]
-        )
-
-        row["technical_margin"] = (
-            row["technical_score"]
-            - row["minimum_technical_score"]
-        )
-
-        row["local_content_margin"] = (
-            row["local_content_percent"]
-            - row["required_local_content_percent"]
-        )
-
-        # ----------------------------------------------------
-        # Exact feature order from training
-        # ----------------------------------------------------
-
-        feature_names = [
-            "turnover_crore",
-            "required_turnover_crore",
-            "experience_years",
-            "required_experience_years",
-            "gst_valid",
-            "pan_valid",
-            "udyam_valid",
-            "oem_authorization",
-            "technical_score",
-            "minimum_technical_score",
-            "technical_compliance",
-            "financial_compliance",
-            "eligibility_compliance",
-            "mandatory_documents_complete",
-            "missing_documents",
-            "local_content_percent",
-            "required_local_content_percent",
-            "certificate_validity",
-            "blacklist_clear",
-            "compliance_score",
-            "turnover_margin",
-            "experience_margin",
-            "technical_margin",
-            "local_content_margin"
+    if st.button("🔍 Analyze Document", type="primary"):
+        keywords = [
+            "GST",
+            "OEM",
+            "turnover",
+            "technical",
+            "authorization",
         ]
+        found = [k for k in keywords if k.lower() in text.lower()]
 
-        row = row[feature_names]
-
-        # ----------------------------------------------------
-        # Prediction
-        # ----------------------------------------------------
-
-        prediction = model.predict(row)[0]
-
-        probability = model.predict_proba(row)[0]
-
-        predicted_label = label_encoder.inverse_transform(
-            [prediction]
-        )[0]
-
-        # Probability of PASS
-        pass_index = list(label_encoder.classes_).index("PASS")
-        pass_probability = probability[pass_index]
-
-        fail_probability = 1 - pass_probability
-
-        # ====================================================
-        # RESULT
-        # ====================================================
-
-        st.markdown("---")
-
-        st.subheader("🎯 AI Assessment Result")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric(
-                "Predicted Result",
-                predicted_label
-            )
-
-        with col2:
-            st.metric(
-                "PASS Probability",
-                f"{pass_probability * 100:.1f}%"
-            )
-
-        with col3:
-            st.metric(
-                "FAIL Probability",
-                f"{fail_probability * 100:.1f}%"
-            )
-
-        if predicted_label == "PASS":
-
-            st.markdown(
-                f"""
-                <div class="pass-box">
-                    <h2>✅ BID LIKELY TO PASS</h2>
-                    <h3>Confidence: {pass_probability * 100:.1f}%</h3>
-                    <p>
-                    The submitted bid satisfies the learned compliance
-                    pattern according to the trained classifier.
-                    </p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        else:
-
-            st.markdown(
-                f"""
-                <div class="fail-box">
-                    <h2>❌ BID LIKELY TO FAIL</h2>
-                    <h3>FAIL Probability: {fail_probability * 100:.1f}%</h3>
-                    <p>
-                    Potential compliance issues were detected.
-                    Review the failed requirements before submission.
-                    </p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        # ====================================================
-        # MARGINS
-        # ====================================================
-
-        st.markdown("---")
-
-        st.subheader("🔎 Compliance Gap Analysis")
-
-        gap1, gap2, gap3, gap4 = st.columns(4)
-
-        turnover_margin = (
-            turnover - required_turnover
-        )
-
-        experience_margin = (
-            experience - required_experience
-        )
-
-        technical_margin = (
-            technical_score - minimum_technical_score
-        )
-
-        local_content_margin = (
-            local_content - required_local_content
-        )
-
-        with gap1:
-            st.metric(
-                "Turnover Margin",
-                f"{turnover_margin:.2f} Cr"
-            )
-
-        with gap2:
-            st.metric(
-                "Experience Margin",
-                f"{experience_margin:.2f} Years"
-            )
-
-        with gap3:
-            st.metric(
-                "Technical Margin",
-                f"{technical_margin:.2f}"
-            )
-
-        with gap4:
-            st.metric(
-                "Local Content Margin",
-                f"{local_content_margin:.2f}%"
-            )
-
-        # ====================================================
-        # RISK FLAGS
-        # ====================================================
-
-        st.markdown("---")
-
-        st.subheader("⚠️ Risk Indicators")
-
-        risks = []
-
-        if turnover_margin < 0:
-            risks.append(
-                "Company turnover is below the required turnover."
-            )
-
-        if experience_margin < 0:
-            risks.append(
-                "Company experience is below the required experience."
-            )
-
-        if technical_margin < 0:
-            risks.append(
-                "Technical score is below the minimum requirement."
-            )
-
-        if local_content_margin < 0:
-            risks.append(
-                "Local content is below the required percentage."
-            )
-
-        if missing_documents > 0:
-            risks.append(
-                f"{missing_documents} mandatory document(s) are missing."
-            )
-
-        if gst_valid == "No":
-            risks.append("GST validation failed.")
-
-        if pan_valid == "No":
-            risks.append("PAN validation failed.")
-
-        if udyam_valid == "No":
-            risks.append("Udyam validation failed.")
-
-        if oem_authorization == "No":
-            risks.append("OEM authorization is unavailable.")
-
-        if certificate_validity == "Expired":
-            risks.append("Certificate is expired.")
-
-        if blacklist_clear == "Blacklisted":
-            risks.append("Blacklist check failed.")
-
-        if not risks:
-
-            st.success(
-                "✅ No major rule-based risk indicators were detected."
-            )
-
-        else:
-
-            for risk in risks:
-                st.warning("⚠️ " + risk)
+        st.success("Document analysis completed.")
+        st.write("Detected evidence:", ", ".join(found) if found else "None")
 
 
 # ============================================================
-# DATASET EXPLORER
+# COMPLIANCE ENGINE
 # ============================================================
+elif page == "⚙️ Compliance Engine":
+    st.title("⚙️ Compliance Engine")
 
-elif page == "📊 Dataset Explorer":
+    st.write("Configure the weighted compliance rule engine.")
 
-    st.markdown(
-        '<div class="section-title">📊 GeM Bid Dataset Explorer</div>',
-        unsafe_allow_html=True
-    )
+    rules = {
+        "Financial": 20,
+        "Technical": 25,
+        "Documentation": 20,
+        "Statutory": 15,
+        "Eligibility": 10,
+        "Policy / Local Content": 10,
+    }
 
-    dataset_path = "gem_bid_compliance_dataset_5000.csv"
+    for name, default in rules.items():
+        st.slider(name, 0, 50, default)
 
-    if os.path.exists(dataset_path):
+    st.success("Rule configuration ready for evaluation.")
 
-        df = pd.read_csv(dataset_path)
 
-        col1, col2, col3 = st.columns(3)
+# ============================================================
+# RISK ASSESSMENT
+# ============================================================
+elif page == "⚠️ Risk Assessment":
+    st.title("⚠️ Risk Assessment")
 
-        with col1:
-            st.metric(
-                "Total Bids",
-                len(df)
-            )
+    score = st.slider("Overall Risk Score", 0, 100, 38)
 
-        with col2:
-            pass_count = (
-                df["result"] == "PASS"
-            ).sum()
-
-            st.metric(
-                "PASS Bids",
-                pass_count
-            )
-
-        with col3:
-            fail_count = (
-                df["result"] == "FAIL"
-            ).sum()
-
-            st.metric(
-                "FAIL Bids",
-                fail_count
-            )
-
-        st.markdown("---")
-
-        st.subheader("Dataset Preview")
-
-        st.dataframe(
-            df.head(100),
-            use_container_width=True
-        )
-
-        st.subheader("Result Distribution")
-
-        result_counts = df["result"].value_counts()
-
-        st.bar_chart(result_counts)
-
+    if score < 30:
+        st.success("🟢 LOW RISK")
+    elif score < 65:
+        st.warning("🟠 MEDIUM RISK")
     else:
+        st.error("🔴 HIGH RISK")
 
-        st.warning(
-            "Dataset file not found. "
-            "Place gem_bid_compliance_dataset_5000.csv "
-            "in the same directory as app.py."
-        )
+    st.progress(score / 100)
+    st.caption(
+        "Risk classification should support — not replace — procurement-officer review."
+    )
 
 
 # ============================================================
-# ABOUT
+# EVIDENCE EXPLORER
 # ============================================================
+elif page == "🔎 Evidence Explorer":
+    st.title("🔎 Evidence Explorer")
 
-elif page == "ℹ️ About":
-
-    st.markdown(
-        '<div class="section-title">ℹ️ About BidTrust AI</div>',
-        unsafe_allow_html=True
+    evidence = pd.DataFrame(
+        {
+            "Evidence ID": ["EV-001", "EV-002", "EV-003", "EV-004"],
+            "Requirement": [
+                "GST Validity",
+                "OEM Authorization",
+                "Turnover",
+                "Technical Score",
+            ],
+            "Source": [
+                "GST Certificate.pdf",
+                "OEM Letter.pdf",
+                "Audited Financials.pdf",
+                "Technical Bid.pdf",
+            ],
+            "Confidence": ["98%", "96%", "94%", "91%"],
+            "Status": ["Verified", "Verified", "Verified", "Review"],
+        }
     )
 
-    st.markdown("""
-    ## 🛡️ BidTrust AI
+    st.dataframe(evidence, use_container_width=True, hide_index=True)
 
-    BidTrust AI is an AI-powered tender compliance assessment
-    platform designed to help organizations evaluate whether a
-    GeM tender bid is likely to pass or fail compliance checks.
 
-    ### Core Modules
+# ============================================================
+# DISCREPANCY CENTER
+# ============================================================
+elif page == "🚨 Discrepancy Center":
+    st.title("🚨 Discrepancy Center")
 
-    **💰 Financial Compliance**
-    - Company turnover
-    - Required turnover
+    discrepancies = [
+        ("Nova", "2 mandatory documents missing", "Medium"),
+        ("Vertex", "Technical score below threshold", "High"),
+        ("Vertex", "OEM authorization unavailable", "High"),
+        ("Nova", "Local content evidence incomplete", "Medium"),
+    ]
 
-    **🏢 Experience & Eligibility**
-    - Company experience
-    - Required experience
+    for bidder, issue, severity in discrepancies:
+        if severity == "High":
+            st.error(f"🔴 {bidder} — {issue}")
+        else:
+            st.warning(f"🟠 {bidder} — {issue}")
 
-    **📄 Document Compliance**
-    - GST
-    - PAN
-    - Udyam
-    - OEM authorization
-    - Mandatory documents
 
-    **⚙️ Technical Compliance**
-    - Technical score
-    - Minimum technical score
-
-    **🇮🇳 Local Content**
-    - Local content percentage
-    - Required local content
-
-    **🛡️ Legal Checks**
-    - Certificate validity
-    - Blacklist status
-
-    ### Machine Learning
-
-    The classification system compares:
-
-    - Logistic Regression
-    - Random Forest
-    - Gradient Boosting
-
-    The trained Gradient Boosting model is used for the final
-    prediction based on F1-score.
-    """)
-
-    st.success(
-        "BidTrust AI — Making tender compliance faster, smarter and more transparent."
+# ============================================================
+# OPTIONAL REAL ML PREDICTION
+# ============================================================
+with st.sidebar.expander("🧠 ML Bid Predictor", expanded=False):
+    st.caption(
+        "Uses best_tender_classifier.pkl when the model and label encoder "
+        "are available in the same folder."
     )
+
+    turnover = st.number_input("Company Turnover (₹ Cr)", 0.0, 1000.0, 10.0)
+    required_turnover = st.number_input("Required Turnover (₹ Cr)", 0.0, 1000.0, 5.0)
+    experience = st.number_input("Experience (Years)", 0.0, 100.0, 5.0)
+    required_experience = st.number_input("Required Experience", 0.0, 100.0, 3.0)
+    technical_score = st.slider("Technical Score", 0.0, 100.0, 75.0)
+    minimum_technical_score = st.number_input("Minimum Technical Score", 0.0, 100.0, 70.0)
+
+    gst = st.selectbox("GST Valid", ["Yes", "No"])
+    pan = st.selectbox("PAN Valid", ["Yes", "No"])
+    udyam = st.selectbox("Udyam Valid", ["Yes", "No"])
+    oem = st.selectbox("OEM Authorization", ["Yes", "No"])
+    documents = st.selectbox("Mandatory Documents Complete", ["Yes", "No"])
+    missing_documents = st.number_input("Missing Documents", 0, 100, 0)
+    local_content = st.number_input("Local Content %", 0.0, 100.0, 60.0)
+    required_local_content = st.number_input("Required Local Content %", 0.0, 100.0, 50.0)
+    certificate = st.selectbox("Certificate", ["Valid", "Expired"])
+    blacklist = st.selectbox("Blacklist", ["Clear", "Blacklisted"])
+    compliance_score = st.slider("Existing Compliance Score", 0.0, 100.0, 80.0)
+
+    if st.button("🚀 Run ML Prediction", use_container_width=True):
+
+        if model is None or label_encoder is None:
+            st.warning(
+                "ML files not found. Put best_tender_classifier.pkl and "
+                "label_encoder.pkl beside app.py to enable real predictions."
+            )
+        else:
+            record = {
+                "turnover_crore": turnover,
+                "required_turnover_crore": required_turnover,
+                "experience_years": experience,
+                "required_experience_years": required_experience,
+                "gst_valid": 1 if gst == "Yes" else 0,
+                "pan_valid": 1 if pan == "Yes" else 0,
+                "udyam_valid": 1 if udyam == "Yes" else 0,
+                "oem_authorization": 1 if oem == "Yes" else 0,
+                "technical_score": technical_score,
+                "minimum_technical_score": minimum_technical_score,
+                "technical_compliance": 1 if technical_score >= minimum_technical_score else 0,
+                "financial_compliance": 1 if turnover >= required_turnover else 0,
+                "eligibility_compliance": 1 if experience >= required_experience else 0,
+                "mandatory_documents_complete": 1 if documents == "Yes" else 0,
+                "missing_documents": missing_documents,
+                "local_content_percent": local_content,
+                "required_local_content_percent": required_local_content,
+                "certificate_validity": 1 if certificate == "Valid" else 0,
+                "blacklist_clear": 1 if blacklist == "Clear" else 0,
+                "compliance_score": compliance_score,
+            }
+
+            row = pd.DataFrame([record])
+            row["turnover_margin"] = turnover - required_turnover
+            row["experience_margin"] = experience - required_experience
+            row["technical_margin"] = technical_score - minimum_technical_score
+            row["local_content_margin"] = local_content - required_local_content
+
+            feature_names = [
+                "turnover_crore",
+                "required_turnover_crore",
+                "experience_years",
+                "required_experience_years",
+                "gst_valid",
+                "pan_valid",
+                "udyam_valid",
+                "oem_authorization",
+                "technical_score",
+                "minimum_technical_score",
+                "technical_compliance",
+                "financial_compliance",
+                "eligibility_compliance",
+                "mandatory_documents_complete",
+                "missing_documents",
+                "local_content_percent",
+                "required_local_content_percent",
+                "certificate_validity",
+                "blacklist_clear",
+                "compliance_score",
+                "turnover_margin",
+                "experience_margin",
+                "technical_margin",
+                "local_content_margin",
+            ]
+
+            try:
+                row = row[feature_names]
+
+                prediction = model.predict(row)[0]
+                predicted_label = label_encoder.inverse_transform([prediction])[0]
+
+                if hasattr(model, "predict_proba"):
+                    probabilities = model.predict_proba(row)[0]
+                    classes = list(label_encoder.classes_)
+
+                    if "PASS" in classes:
+                        pass_probability = probabilities[classes.index("PASS")]
+                    else:
+                        pass_probability = float(np.max(probabilities))
+                else:
+                    pass_probability = 1.0 if predicted_label == "PASS" else 0.0
+
+                if predicted_label == "PASS":
+                    st.success(
+                        f"✅ BID LIKELY TO PASS — Confidence: "
+                        f"{pass_probability * 100:.1f}%"
+                    )
+                else:
+                    st.error(
+                        f"❌ BID LIKELY TO FAIL — PASS probability: "
+                        f"{pass_probability * 100:.1f}%"
+                    )
+
+            except Exception as exc:
+                st.error("Prediction failed because the model feature schema differs.")
+                st.code(str(exc))
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+st.markdown(
+    """
+    <div style="text-align:center;color:#536486;font-size:10px;margin-top:25px;">
+        GeM-AI Integrated Bid Compliance Hub • SIH Prototype •
+        Human-in-the-Loop Decision Support • Synthetic Demonstration Data
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
