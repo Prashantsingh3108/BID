@@ -634,7 +634,7 @@ elif page == "📑 Tender Management":
         st.text_input("Tender Title", "Industrial High-Pressure Centrifugal Pumps")
         st.selectbox("Tender Status", ["Active", "Under Evaluation", "Closed"])
     with c2:
-        st.number_input("Total Clauses", 12, min_value=1)
+        st.number_input("Total Clauses", min_value=1, value=12)
         st.date_input("Evaluation Date")
         st.selectbox("Procurement Type", ["Goods", "Services", "Works"])
 
